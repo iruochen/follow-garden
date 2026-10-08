@@ -1,0 +1,11 @@
+{
+  "extensionName": {
+    "message": "Follow Garden: X Following Manager"
+  },
+  "extensionDescription": {
+    "message": "Organize your X following, protect favorite accounts, and review single or batch unfollow actions."
+  },
+  "actionTitle": {
+    "message": "Open Follow Garden"
+  }
+}

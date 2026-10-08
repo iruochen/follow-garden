@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Follow Garden · 关注花园</title><link rel="stylesheet" href="styles.css"><link rel="icon" type="image/svg+xml" href="mark.svg"></head>
+<body>
+<header class="topbar">
+  <a class="brand" href="index.html"><img class="brand-logo" src="mark.svg" alt=""><span>Follow Garden</span></a>
+  <label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="搜索姓名、账号或简介" data-i18n-placeholder="search" data-i18n-label="search" aria-label="搜索关注账号"><kbd>/</kbd></label>
+  <div class="top-actions"><select class="language-select" data-language data-i18n-label="language" aria-label="语言"><option value="zh_CN">中文</option><option value="en">EN</option></select><select id="read-mode" class="mode-select" data-i18n-label="readMode"><option value="web" data-i18n="webMode">X 网页（免费）</option><option value="api">TwitterAPI.io</option></select><span id="source" class="source"></span><button id="connect" class="button small">连接 X</button><button id="refresh" class="button small">读取数据</button></div>
+</header>
+<section id="connection-banner" class="connection-banner" data-i18n-label="connectionRegion" aria-label="X 连接进度" role="status" hidden></section>
+<div class="workspace">
+  <aside class="sidebar"><div class="space-label" data-i18n="space">我的关注空间</div><nav id="nav" data-i18n-label="relationshipNav" aria-label="关系分类"></nav><div class="sidebar-bottom"><div class="local-note"><span class="status-dot"></span><span data-i18n="local">数据留在你的浏览器</span></div><div id="identity"></div><button class="nav-item" data-view="settings"><span data-i18n="settings">设置与数据</span><span>↗</span></button></div></aside>
+  <main id="main"><section class="list-panel" data-i18n-label="listRegion" aria-label="账号列表"><div id="list-header"></div><div id="list" class="account-list"></div><div id="list-footer"></div></section><section id="detail" class="detail-panel" data-i18n-label="detail" aria-label="账号详情"></section></main>
+</div>
+<dialog id="confirm" aria-labelledby="dialog-title"><div id="confirm-content"></div></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script type="module" src="app.js"></script>
+</body></html>

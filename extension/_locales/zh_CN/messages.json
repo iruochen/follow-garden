@@ -1,0 +1,11 @@
+{
+  "extensionName": {
+    "message": "Follow Garden · 关注花园"
+  },
+  "extensionDescription": {
+    "message": "整理 X 关注关系、保护重要账号，确认单个或批量取消关注。"
+  },
+  "actionTitle": {
+    "message": "打开关注花园"
+  }
+}

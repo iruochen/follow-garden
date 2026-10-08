@@ -1,0 +1,26 @@
+.DS_Store
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+__pycache__/
+*.pyc
+work/
+private-data/
+local-exports/
+*.zip
+*.crx
+*.pem
+
+# Local planning, debugging and submission notes
+AGENTS.md
+design/
+docs/*
+!docs/architecture.md
+!docs/architecture.zh-CN.md
+!docs/privacy.md
+!docs/privacy.zh-CN.md
+scripts/probe_x.mjs
