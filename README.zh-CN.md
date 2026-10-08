@@ -22,7 +22,7 @@
 
 ## 安装
 
-Chrome 商店提交正在准备，尚未提供正式商店安装链接。
+0.1.0 已于 2026 年 10 月 8 日提交 Chrome 商店审核，通过后自动公开发布。当前仍在审核中，尚未提供正式商店安装链接。
 
 1. 从 [Releases](https://github.com/iruochen/follow-garden/releases) 下载扩展 ZIP 并解压，或克隆仓库。
 2. 打开 `chrome://extensions` 或 `brave://extensions`，启用开发者模式。

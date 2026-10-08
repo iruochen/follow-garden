@@ -36,8 +36,8 @@ const copy = {
     "看看它如何工作 ↓"
   ],
   "availability": [
-    "Free & open source · Chrome Web Store coming soon",
-    "免费开源 · 即将登陆 Chrome 应用商店"
+    "Free & open source · Chrome Web Store review pending",
+    "免费开源 · Chrome 应用商店审核中"
   ],
   "sideCaption": [
     "Less scrolling.\nMore considered choices.",

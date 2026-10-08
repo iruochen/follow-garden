@@ -22,7 +22,7 @@ Protected and unconfirmed accounts are excluded from unfollow tasks. Incomplete 
 
 ## Install
 
-Chrome Web Store submission is being prepared. Until a store listing is available:
+Version 0.1.0 was submitted to the Chrome Web Store on October 8, 2026 and is pending review. It will publish automatically after approval. Until a store listing is available:
 
 1. Download the extension ZIP from [Releases](https://github.com/iruochen/follow-garden/releases) and extract it, or clone this repository.
 2. Open `chrome://extensions` (or `brave://extensions`) and enable Developer mode.
