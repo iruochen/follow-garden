@@ -36,8 +36,8 @@ const copy = {
     "看看它如何工作 ↓"
   ],
   "availability": [
-    "Free & open source · Chrome Web Store review pending",
-    "免费开源 · Chrome 应用商店审核中"
+    "Free & open source · Available on Chrome Web Store",
+    "免费开源 · 已上架 Chrome 应用商店"
   ],
   "sideCaption": [
     "Less scrolling.\nMore considered choices.",
@@ -208,8 +208,8 @@ const copy = {
     "问题反馈"
   ],
   "download": [
-    "Download extension ↗",
-    "下载扩展 ↗"
+    "Add to Chrome ↗",
+    "添加到 Chrome ↗"
   ]
 };
 let language;

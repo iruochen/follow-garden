@@ -4,7 +4,7 @@
 
 免费开源的浏览器扩展，帮助你查看 X 关注关系、保护重要账号，并在复核后确认单个或批量取消关注。
 
-[产品网站](https://iruochen.github.io/follow-garden/) · [隐私政策](https://iruochen.github.io/follow-garden/privacy.html) · [反馈问题](https://github.com/iruochen/follow-garden/issues)
+[商店安装](https://chromewebstore.google.com/detail/follow-garden-x-following/njapleffcdeikalapdhkgkpbbhdnlmcg) · [产品网站](https://iruochen.github.io/follow-garden/) · [隐私政策](https://iruochen.github.io/follow-garden/privacy.html) · [反馈问题](https://github.com/iruochen/follow-garden/issues)
 
 ![合成账号界面示例](site/assets/following-zh.jpg)
 
@@ -22,7 +22,9 @@
 
 ## 安装
 
-0.1.0 已于 2026 年 10 月 8 日提交 Chrome 商店审核，通过后自动公开发布。当前仍在审核中，尚未提供正式商店安装链接。
+Follow Garden 已通过审核并公开上架，可直接从 [Chrome 应用商店](https://chromewebstore.google.com/detail/follow-garden-x-following/njapleffcdeikalapdhkgkpbbhdnlmcg) 安装，然后从工具栏打开关注花园。
+
+开发或手动安装方式：
 
 1. 从 [Releases](https://github.com/iruochen/follow-garden/releases) 下载扩展 ZIP 并解压，或克隆仓库。
 2. 打开 `chrome://extensions` 或 `brave://extensions`，启用开发者模式。

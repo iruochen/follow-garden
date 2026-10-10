@@ -4,7 +4,7 @@
 
 A free, open-source browser extension for reviewing your X following. Browse relationships, protect accounts you want to keep, and confirm single or selected batch unfollows.
 
-[Website](https://iruochen.github.io/follow-garden/) · [Privacy policy](https://iruochen.github.io/follow-garden/privacy.html) · [Report a bug](https://github.com/iruochen/follow-garden/issues)
+[Install from Chrome Web Store](https://chromewebstore.google.com/detail/follow-garden-x-following/njapleffcdeikalapdhkgkpbbhdnlmcg) · [Website](https://iruochen.github.io/follow-garden/) · [Privacy policy](https://iruochen.github.io/follow-garden/privacy.html) · [Report a bug](https://github.com/iruochen/follow-garden/issues)
 
 ![Follow Garden with fictional demo accounts](site/assets/following-en.jpg)
 
@@ -22,7 +22,9 @@ Protected and unconfirmed accounts are excluded from unfollow tasks. Incomplete 
 
 ## Install
 
-Version 0.1.0 was submitted to the Chrome Web Store on October 8, 2026 and is pending review. It will publish automatically after approval. Until a store listing is available:
+Follow Garden is now available on the [Chrome Web Store](https://chromewebstore.google.com/detail/follow-garden-x-following/njapleffcdeikalapdhkgkpbbhdnlmcg). Install it from the store, then open Follow Garden from the toolbar.
+
+For development or manual installation:
 
 1. Download the extension ZIP from [Releases](https://github.com/iruochen/follow-garden/releases) and extract it, or clone this repository.
 2. Open `chrome://extensions` (or `brave://extensions`) and enable Developer mode.

@@ -33,7 +33,7 @@ for folder in ('site','store-assets/promos'):
         for target in re.findall(r'(?:src|href)="([^"#]+)"',source):
             if target.startswith('https://'):
                 from urllib.parse import urlparse
-                assert urlparse(target).hostname in {'github.com','iruochen.github.io'},(path,target)
+                assert urlparse(target).hostname in {'github.com','iruochen.github.io','chromewebstore.google.com'},(path,target)
                 continue
             assert not target.startswith(('http:','//')),path
             assert (path.parent/target.split('#')[0]).is_file(),(path,target)

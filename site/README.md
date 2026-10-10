@@ -8,6 +8,8 @@ GitHub Pages deploys only this directory through `.github/workflows/pages.yml`. 
 
 Public URLs / 公开地址:
 
+- Chrome Web Store / Chrome 应用商店: https://chromewebstore.google.com/detail/follow-garden-x-following/njapleffcdeikalapdhkgkpbbhdnlmcg
+
 - https://iruochen.github.io/follow-garden/
 - https://iruochen.github.io/follow-garden/privacy.html
 
