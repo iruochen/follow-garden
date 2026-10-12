@@ -92,25 +92,29 @@ export class XSession {
     return parseSessionId(await this.fetchURL(new URL('https://x.com/home'),{},'GET',undefined,signal,true));
   }
   async assertOwner(owner, signal) { if (await this.identityId(signal) !== owner) throw new GardenError('IDENTITY', 'X 登录账号已切换，操作已停止。'); }
-  async readFollowersDirect(owner, signal, onProgress = () => {}, onPage = () => {}) {
+  async readFollowersDirect(...args) { return this.readProfilesDirect('followers',...args); }
+  async readFollowingDirect(...args) { return this.readProfilesDirect('friends',...args); }
+  async readProfilesDirect(kind, owner, signal, onProgress = () => {}, onPage = () => {}) {
+    if(!['friends','followers'].includes(kind))throw new GardenError('REQUEST','不支持的列表。');
+    const phase=kind==='friends'?'following':'followers';
     const users=new Map(),seen=new Set();let cursor='-1',complete=false,error=null,errorCode=null;
     try {
-      if(!/^\d{1,30}$/.test(owner))throw new GardenError('IDENTITY','无法确认关注者所属账号。');
+      if(!/^\d{1,30}$/.test(owner))throw new GardenError('IDENTITY','无法确认列表所属账号。');
       for(let page=0;page<250;page++){
         if(seen.has(cursor))throw new GardenError('CURSOR','分页未推进，保留部分结果。');
-        seen.add(cursor);onProgress({phase:'followers',followers:users.size,followersPages:page});
-        const url=new URL('https://api.x.com/1.1/followers/list.json');
+        seen.add(cursor);onProgress({phase,[phase]:users.size,[phase+'Pages']:page});
+        const url=new URL('https://api.x.com/1.1/'+kind+'/list.json');
         url.search=new URLSearchParams({user_id:owner,count:'200',cursor,skip_status:'true',include_user_entities:'false'}).toString();
         const [identityCheck,pageRead]=await Promise.allSettled([this.assertOwner(owner,signal),this.fetchURL(url,{...this.headers},'GET',undefined,signal)]);
         if(identityCheck.status==='rejected')throw identityCheck.reason;
         if(pageRead.status==='rejected')throw pageRead.reason;
         const data=pageRead.value;
-        if(!Array.isArray(data.users)||data.users.length>200||typeof data.next_cursor_str!=='string'||!/^[-]?\d{1,100}$/.test(data.next_cursor_str))throw new GardenError('FORMAT','关注者分页格式变化，完整度未知。');
+        if(!Array.isArray(data.users)||data.users.length>200||typeof data.next_cursor_str!=='string'||!/^[-]?\d{1,100}$/.test(data.next_cursor_str))throw new GardenError('FORMAT','资料分页格式变化，完整度未知。');
         const batch=data.users.map(normalizeUser);
         for(const user of batch)users.set(user.id,user);
         cursor=data.next_cursor_str;complete=cursor==='0';
-        onPage({kind:'followers',users:[...users.values()],complete});
-        onProgress({phase:'followers',followers:users.size,followersPages:page+1});
+        onPage({kind,users:[...users.values()],complete});
+        onProgress({phase,[phase]:users.size,[phase+'Pages']:page+1});
         if(complete)break;
       }
       if(!complete){error='达到单次读取页数上限，结果不完整。';errorCode='LIMIT';}
@@ -121,6 +125,7 @@ export class XSession {
     return {users:[...users.values()],complete,error,errorCode};
   }
   async readList(kind, owner, signal, onProgress = () => {}, onPage = () => {}) {
+    if(kind==='friends' && this.directFollowing===true)return this.readFollowingDirect(owner,signal,onProgress,onPage);
     if(kind==='followers' && this.directFollowers===true)return this.readFollowersDirect(owner,signal,onProgress,onPage);
     const users = new Map(), seen = new Set(); let cursor = null, complete = false, error = null, errorCode = null;
     try {

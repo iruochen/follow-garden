@@ -5,7 +5,7 @@ export function isListURL(value) {
   } catch {return false;}
 }
 export function isFollowersURL(value) {
-  try {const url=new URL(value);return url.origin==='https://api.x.com' && url.pathname==='/1.1/followers/list.json' && !url.username && !url.password;}catch{return false;}
+  try {const url=new URL(value);return url.origin==='https://api.x.com' && ['/1.1/followers/list.json','/1.1/friends/list.json'].includes(url.pathname) && !url.username && !url.password;}catch{return false;}
 }
 export function listTransport(session, scripting, fallback=fetch, tabs=null) {
   let observerTab=null,returnTab=null;

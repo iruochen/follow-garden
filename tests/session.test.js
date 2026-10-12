@@ -267,3 +267,21 @@ test('直接关注者重复游标停止；分页身份变化时丢弃全部跨�
   if(changed)await assert.rejects(s.readList('followers','123'),{code:'IDENTITY'});else {const r=await s.readList('followers','123');assert.equal(r.complete,false);assert.equal(r.errorCode,'CURSOR');}assert.equal(calls,2);
  }
 });
+
+test('直接关注资料复用 200 人只读分页，阶段与预览保持 friends 语义',async()=>{
+  const calls=[],progress=[],previews=[];let page=0;
+  const s=ready(async url=>{if(url.endsWith('/home'))return identity();const u=new URL(url);calls.push(u);assert.equal(u.pathname,'/1.1/friends/list.json');assert.equal(u.searchParams.get('count'),'200');return json({users:[{id_str:++page===1?'90071992547409930':'456',followers_count:0}],next_cursor_str:page===1?'99999999999999999':'0'});});
+  s.directFollowing=true;s.prepareList=()=>{throw Error('no navigation');};
+  const result=await s.readList('friends','123',undefined,p=>progress.push(p),p=>previews.push(p));
+  assert.equal(result.complete,true);assert.equal(result.users.length,2);assert.equal(result.users[0].followers,0);
+  assert.deepEqual(calls.map(u=>u.searchParams.get('cursor')),['-1','99999999999999999']);assert.equal(progress.at(-1).followingPages,2);assert.ok(previews.every(p=>p.kind==='friends'));
+});
+test('直接关注限流或格式错误保留部分结果，不回退 GraphQL；身份变化丢弃',async()=>{
+  for(const failure of ['rate','format','identity']) {
+    let page=0,homes=0;const s=ready(async url=>{if(url.endsWith('/home'))return identity(++homes>1&&failure==='identity'?'999':'123');page++;if(page===1)return json({users:[{id_str:'456'}],next_cursor_str:'99'});return failure==='rate'?new Response('{}',{status:429}):json({users:[],next_cursor:0});});
+    s.directFollowing=true;s.prepareList=()=>{throw Error('no fallback');};
+    if(failure==='identity')await assert.rejects(s.readList('friends','123'),{code:'IDENTITY'});
+    else {const r=await s.readList('friends','123');assert.equal(r.complete,false);assert.equal(r.users.length,1);assert.equal(r.errorCode,failure==='rate'?'RATE_LIMIT':'FORMAT');}
+    assert.equal(page,2);
+  }
+});

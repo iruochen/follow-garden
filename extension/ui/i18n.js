@@ -1,4 +1,8 @@
 const strings = {
+  dragFollowerHint:['拖动两端调整范围，最右侧为不限。','Drag either handle to adjust. The right edge has no limit.'],
+  followerFilter:['粉丝数筛选','Follower count'],
+  'range-any':['不限粉丝数','Any count'],'range-under1k':['少于 1,000','Under 1,000'],'range-under10k':['少于 10,000','Under 10,000'],'range-over10k':['10,000 及以上','10,000 or more'],'range-over100k':['100,000 及以上','100,000 or more'],'range-custom':['自定义区间','Custom range'],
+  minFollowers:['最低粉丝数','Minimum'],maxFollowers:['最高粉丝数','Maximum'],noLimit:['不限','No limit'],applyFilter:['应用','Apply'],clearFilter:['重置','Reset'],filterHint:['按粉丝数缩小范围，方便逐个复核。','Narrow by follower count to review accounts.'],filterUnknownHint:['当前结果不包含粉丝数未知的账号。','Accounts with unknown follower counts are excluded.'],invalidFollowerRange:['最高粉丝数不能小于最低粉丝数。','Maximum cannot be less than minimum.'],
   readingAllProfilesHint:['正在分批读取全部关注者资料；已读结果实时显示，可随时取消。TwitterAPI.io 模式会产生第三方费用。','Loading all follower profiles in batches. Results appear as pages arrive; cancel anytime. TwitterAPI.io reads incur third-party charges.'],
   readAllHint:['依次读取全部关注和关注者资料；TwitterAPI.io 模式按供应商规则收费。','Load all following and follower profiles in sequence. TwitterAPI.io charges according to its pricing.'],
   'scanPhase-api-request':['正在请求 API 数据','Requesting API data'],'scanPhase-api-wait':['等待 API 请求间隔','Waiting for API request interval'],apiWaitingHint:['按服务商频率限制排队中，稍后自动继续，可随时取消。','Waiting for the provider’s request interval. Loading will continue automatically; you can cancel anytime.'],apiWaitSeconds:['约 {n} 秒后继续','Continuing in about {n} seconds'],
