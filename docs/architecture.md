@@ -17,7 +17,7 @@ Follow Garden is a Manifest V3 extension with a static product website. The exte
 
 The top-level refresh reads following, then followers. Pages appear in an in-memory preview; cancellation restores the old snapshot. Complete data requires an explicit server end marker, not a small or empty page. Read errors preserve clearly marked partial results where supported.
 
-Free mode reuses X's signed-in browser session. Following uses an observed GraphQL template; followers use direct paginated profile reads. Provider mode reads full profiles, derives IDs from those profiles and does not make a redundant ID-list request during a full refresh. Provider reads are paced and billed externally.
+Free mode reuses X's signed-in browser session. Following and followers use direct paginated profile reads, requesting up to 200 profiles per page. Provider mode reads full profiles, derives IDs from those profiles and does not make a redundant ID-list request during a full refresh. Provider reads are paced and billed externally.
 
 ## Invariants
 

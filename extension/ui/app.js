@@ -1,5 +1,6 @@
 import {command, connectX, configureReader, isExtension} from '../src/client.js';
 import {relation, eligible, stats, csv, profileUrl, followerProfiles} from '../src/domain.js';
+import {matchesFollowerRange,positionToCount,countToPosition} from './follower-filter.js';
 import {safeAvatar} from '../src/web-data.js';
 import {t, locale, language, initLanguage, setLanguage, localizeStatic, errorText} from './i18n.js';
 const $ = selector => document.querySelector(selector);
@@ -7,6 +8,7 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 const symbols = {all:'≡',followers:'↙', 'not-following-back':'↗', mutual:'⇄', unknown:'◌', protected:'◇', review:'☷', job:'◷'};
 let scanError = null, apiDraft = null;
 let data, state, signature = '', view = 'all', focused = null, query = '', sort = 'default', page = 0;
+let followerRange = {min:null,max:null}, followerDraft = {min:'',max:''};
 const drafts = new Map();
 let selection = new Set(), confirmIds = [], confirmOwner = null, busy = false, toastTimer;
 const pageSize = 50;
@@ -74,6 +76,7 @@ function filtered() {
   if (['mutual','not-following-back','unknown'].includes(view)) {const followers=new Set(state.snapshot.followerIds);users = users.filter(u => relation(u,state.snapshot,followers) === view);}
   if (view === 'protected') users = users.filter(u => Object.hasOwn(state.protections,u.id));
   if (view === 'review') users = users.filter(u => state.review.includes(u.id));
+  if (view === 'not-following-back') users = users.filter(u => matchesFollowerRange(u.followers,followerRange));
   if (query) users = users.filter(u => [u.name,u.handle,u.bio].join(' ').toLocaleLowerCase().includes(query.toLocaleLowerCase()));
   if (sort === 'followers') users.sort((a,b) => (b.followers ?? -1) - (a.followers ?? -1));
   if (sort === 'name') users.sort((a,b) => a.name.localeCompare(b.name,locale()));
@@ -125,11 +128,16 @@ function renderListContent() {
   const visible=users.slice(page*pageSize,(page+1)*pageSize);
   if(!visible.some(u=>u.id===focused))focused=visible[0]?.id||null;
   $('#list-header').innerHTML=`<div class="list-heading"><div><h1>${t(view==='followers'?'followersPage':view)}</h1><small>${t('accounts',{n:users.length})}${(view==='followers'?profilesComplete():state.snapshot.followingComplete)?'':' · '+t('partial')}</small></div><select class="sort" aria-label="${t('sort')}" id="sort"><option value="default">${t('defaultSort')}</option><option value="followers">${t('followersSort')}</option><option value="name">${t('nameSort')}</option></select></div><div class="list-tools"><span>${view==='followers'?t(Array.isArray(state.snapshot.followerUsers)?'followersBrowse':'legacyFollowers'):selection.size?t('selected',{n:selection.size}):t('selectPage')}</span>${view==='followers'&&state.mode==='live'&&(!profilesComplete()||readMode()==='web')?`<button class="button small" id="load-followers" ${locked()||state.snapshot.followerPagingUnavailable?'disabled':''}>${t(state.snapshot.followerPagingUnavailable?'followerPagingUnavailable':users.length&&readMode()==='api'?'loadMoreFollowers':'loadFollowers')}</button>`:''}<button class="link-button" id="select-page" ${view==='followers'?'hidden':''} ${locked()?'disabled':''}>${t(selection.size?'clearSelection':'selectEligible')}</button></div>`;
+  if(view==='not-following-back') {
+    const active=followerRange.min!==null||followerRange.max!==null;
+    const low=countToPosition(followerRange.min??0),high=countToPosition(followerRange.max);
+    $('#list-header').insertAdjacentHTML('beforeend',`<form id="follower-filter" class="follower-filter"><div class="filter-top"><span>${t('followerFilter')}</span><div class="filter-values"><input id="follower-min" aria-label="${t('minFollowers')}" type="number" min="0" max="9007199254740991" step="1" placeholder="0" value="${esc(followerDraft.min)}" inputmode="numeric"><span aria-hidden="true">–</span><input id="follower-max" aria-label="${t('maxFollowers')}" type="number" min="0" max="9007199254740991" step="1" placeholder="${t('noLimit')}" value="${esc(followerDraft.max)}" inputmode="numeric"><button id="clear-follower-filter" type="button" class="filter-reset" aria-label="${t('clearFilter')}" title="${t('clearFilter')}" ${active?'':'disabled'}>↺</button></div></div><div class="dual-range" style="--low:${low/10}%;--high:${high/10}%"><div class="range-track"><span></span></div><input id="follower-low-slider" type="range" min="0" max="1000" step="1" value="${low}" aria-label="${t('minFollowers')}" aria-valuetext="${followerRange.min??0}" style="z-index:${low>500?4:3}"><input id="follower-high-slider" type="range" min="0" max="1000" step="1" value="${high}" aria-label="${t('maxFollowers')}" aria-valuetext="${followerRange.max??t('noLimit')}" style="z-index:${low>500?3:4}"></div><div class="range-ticks" aria-hidden="true"><span>0</span><span>1K</span><span>10K</span><span>100K</span><span>1M</span><span>10M+</span></div><small class="filter-hint">${t(active?'filterUnknownHint':'dragFollowerHint')}</small></form>`);
+  }
   if(!data.scanning&&view==='followers'&&(state.snapshot.followerProfilesError || state.snapshot.followersError))$('#list-header').insertAdjacentHTML('beforeend',`<div class="notice">${t('followersReadFailed')} ${esc(errorText(state.snapshot.followerProfilesError || state.snapshot.followersError))}</div>`);
   if(view==='followers'&&state.snapshot.followerPagingUnavailable)$('#list-header').insertAdjacentHTML('beforeend',`<div class="notice">${t('followerPagingHint')}</div>`);
   if(state.mode==='live'&&(state.snapshot.provider || 'web')!==readMode())$('#list-header').insertAdjacentHTML('beforeend',`<div class="notice">${t('modeChangedHint')}</div>`);
   $('#sort').value=sort;
-  $('#list').innerHTML=visible.map(u=>`<article class="account-row ${focused===u.id?'focused':''}" data-focus="${u.id}">${view==='followers'?'<span class="follower-marker" aria-hidden="true">↙</span>':`<input type="checkbox" class="check" data-select="${u.id}" aria-label="${esc(t('selectUser',{name:u.name}))}" ${selection.has(u.id)?'checked ':''}${!eligible(u,state)||locked()?'disabled':''}>`}${avatar(u)}<div class="row-body"><button class="row-title" data-focus="${u.id}" aria-label="${esc(t('viewUser',{name:u.name}))}"><strong>${esc(u.name)}</strong><span class="row-handle">@${esc(u.handle)}</span></button><div class="row-meta">${tag(u)}${Object.hasOwn(state.protections,u.id)?`<span class="tag protected">◇ ${t('protectedTag')}</span>`:''}</div><div class="row-metrics"><span><b>${number(u.followers)}</b><small>${t('followers')}</small></span><span><b>${number(u.friends)}</b><small>${t('following')}</small></span></div><p class="row-bio">${esc(u.bio||t('noBio'))}</p></div>${view==='followers'?'':view==='protected'?`<button class="button small row-unfollow" data-unprotect="${u.id}" ${locked()?'disabled':''} aria-label="${esc(t('unprotect')+' '+u.name)}">${t('unprotect')}</button>`:`<button class="button small danger row-unfollow" data-unfollow="${u.id}" ${!eligible(u,state)||locked()?'disabled':''} aria-label="${esc(t('unfollow')+' '+u.name)}" title="${t(eligible(u,state)?'unfollow':'cannotUnfollow')}">${t('unfollow')}</button>`}</article>`).join('')||`<div class="empty"><div class="empty-symbol">∅</div>${t(query?'noMatches':view==='review'?'emptyReview':view==='followers'&&!profilesComplete()?'followersNotLoaded':'emptyCategory')}</div>`;
+  $('#list').innerHTML=visible.map(u=>`<article class="account-row ${focused===u.id?'focused':''}" data-focus="${u.id}">${view==='followers'?'<span class="follower-marker" aria-hidden="true">↙</span>':`<input type="checkbox" class="check" data-select="${u.id}" aria-label="${esc(t('selectUser',{name:u.name}))}" ${selection.has(u.id)?'checked ':''}${!eligible(u,state)||locked()?'disabled':''}>`}${avatar(u)}<div class="row-body"><button class="row-title" data-focus="${u.id}" aria-label="${esc(t('viewUser',{name:u.name}))}"><strong>${esc(u.name)}</strong><span class="row-handle">@${esc(u.handle)}</span></button><div class="row-meta">${tag(u)}${Object.hasOwn(state.protections,u.id)?`<span class="tag protected">◇ ${t('protectedTag')}</span>`:''}</div><div class="row-metrics"><span><b>${number(u.followers)}</b><small>${t('followers')}</small></span><span><b>${number(u.friends)}</b><small>${t('following')}</small></span></div><p class="row-bio">${esc(u.bio||t('noBio'))}</p></div>${view==='followers'?'':view==='protected'?`<button class="button small row-unfollow" data-unprotect="${u.id}" ${locked()?'disabled':''} aria-label="${esc(t('unprotect')+' '+u.name)}">${t('unprotect')}</button>`:`<button class="button small danger row-unfollow" data-unfollow="${u.id}" ${!eligible(u,state)||locked()?'disabled':''} aria-label="${esc(t('unfollow')+' '+u.name)}" title="${t(eligible(u,state)?'unfollow':'cannotUnfollow')}">${t('unfollow')}</button>`}</article>`).join('')||`<div class="empty"><div class="empty-symbol">∅</div>${t(query||(view==='not-following-back'&&(followerRange.min!==null||followerRange.max!==null))?'noMatches':view==='review'?'emptyReview':view==='followers'&&!profilesComplete()?'followersNotLoaded':'emptyCategory')}</div>`;
   $('#list-footer').innerHTML=selection.size?`<div class="list-bottom bulk-bar"><small>${t('selected',{n:selection.size})}</small><div class="bulk-actions"><button class="button small" id="review-selected" ${locked()?'disabled':''}>${t('addReview')}</button><button class="button small danger" id="bulk" ${locked()?'disabled':''}>${t('bulk')}</button></div></div>`:`<div class="list-bottom"><small>${state.mode==='demo'?t('demoSafe'):view==='followers'&&state.snapshot.provider==='api'?t('profileLoaded',{n:users.length,ids:state.snapshot.followerIds.length}):t('updated',{date:date(state.snapshot.observedAt)})}</small><div class="page-controls"><button id="prev-page" aria-label="${t('previous')}" ${page===0?'disabled':''}>‹</button><span>${users.length?page+1:0}/${Math.ceil(users.length/pageSize)}</span><button id="next-page" aria-label="${t('next')}" ${(page+1)*pageSize>=users.length?'disabled':''}>›</button></div></div>`;
 }
 function renderDetail() {
@@ -196,6 +204,7 @@ document.addEventListener('click',async event => {
   if (button?.dataset.unfollow) { confirmSelection([button.dataset.unfollow],true); return; }
   if (row?.dataset.focus) { focused = row.dataset.focus; renderList(); renderDetail(); return; }
   const id = button?.id;
+  if (id === 'clear-follower-filter') { followerRange={min:null,max:null};applyFollowerFilter();return; }
   if (id === 'connect') { try { const result = await connectX(); scanError = null; await refresh(true); toast(t(result.reused?'xReused':'xOpened')); } catch (e) { toast(errorText(e)); } }
   if (id === 'open-x' || id === 'refresh-x') { scanError = null; await action(id,undefined,id === 'refresh-x' ? t('xRefreshed') : undefined); }
   if (id === 'refresh' || id === 'cancel-read') await scan();
@@ -235,6 +244,33 @@ document.addEventListener('click',async event => {
   }
   if (id === 'confirm-clear') { $('#confirm').close(); drafts.clear(); apiDraft=null; await action('clear',undefined,t('dataCleared')); }
 });
+function applyFollowerFilter() {
+  followerDraft={min:followerRange.min??'',max:followerRange.max??''};
+  page=0;selection.clear();renderList();renderDetail();$('#list').scrollTop=0;
+}
+function commitFollowerRange() {
+  const minimum=$('#follower-min'),maximum=$('#follower-max');
+  const min=minimum.value===''?null:Number(minimum.value),max=maximum.value===''?null:Number(maximum.value);
+  maximum.setCustomValidity(min!==null&&max!==null&&min>max?t('invalidFollowerRange'):'');
+  if(!$('#follower-filter').reportValidity())return;
+  followerRange={min,max};applyFollowerFilter();
+}
+document.addEventListener('submit',event=>{
+  if(event.target.id!=='follower-filter')return;
+  event.preventDefault();commitFollowerRange();
+});
+function previewFollowerRange(target) {
+  const lower=$('#follower-low-slider'),upper=$('#follower-high-slider');
+  if(target===lower)lower.value=Math.min(Number(lower.value),Number(upper.value));
+  else upper.value=Math.max(Number(lower.value),Number(upper.value));
+  const low=Number(lower.value),high=Number(upper.value);
+  followerDraft={min:low===0?'':positionToCount(low),max:high===1000?'':positionToCount(high)};
+  $('#follower-min').value=followerDraft.min;$('#follower-max').value=followerDraft.max;
+  lower.setAttribute('aria-valuetext',String(followerDraft.min||0));upper.setAttribute('aria-valuetext',String(followerDraft.max===''?t('noLimit'):followerDraft.max));
+  const track=$('.dual-range');track.style.setProperty('--low',low/10+'%');track.style.setProperty('--high',high/10+'%');
+  lower.style.zIndex=low>500?'4':'3';upper.style.zIndex=low>500?'3':'4';
+  $('#follower-max').setCustomValidity('');
+}
 document.addEventListener('change',async event => {
   const id = event.target.dataset.select;
   if (id) { if (event.target.checked) selection.add(id); else selection.delete(id); renderList(); $('#list').querySelector('[data-select="' + id + '"]').focus(); }
@@ -246,10 +282,11 @@ document.addEventListener('change',async event => {
   }
   if(event.target.id==='settings-mode'){apiDraft.mode=event.target.value;renderSettings();}
   if(event.target.id==='api-remember')apiDraft.remember=event.target.checked;
+  if (['follower-low-slider','follower-high-slider','follower-min','follower-max'].includes(event.target.id)) commitFollowerRange();
   if (event.target.id === 'sort') { sort = event.target.value; page = 0; selection.clear(); renderList(); renderDetail(); $('#list').scrollTop = 0; }
   if (event.target.id === 'live-consent') $('#execute').disabled = !event.target.checked;
 });
-document.addEventListener('input',event => { if(event.target.id==='api-handle')apiDraft.handle=event.target.value; if(event.target.id==='api-key')apiDraft.key=event.target.value; if (event.target.id === 'note') drafts.set(state.accountId + ':' + focused,event.target.value); });
+document.addEventListener('input',event => { if(['follower-low-slider','follower-high-slider'].includes(event.target.id))previewFollowerRange(event.target); if(['follower-min','follower-max'].includes(event.target.id)){followerDraft[event.target.id==='follower-min'?'min':'max']=event.target.value;$('#follower-max').setCustomValidity('');} if(event.target.id==='api-handle')apiDraft.handle=event.target.value; if(event.target.id==='api-key')apiDraft.key=event.target.value; if (event.target.id === 'note') drafts.set(state.accountId + ':' + focused,event.target.value); });
 $('#search').addEventListener('input',event => { query = event.target.value.trim(); page = 0; selection.clear(); renderList(); renderDetail(); $('#list').scrollTop = 0; });
 document.addEventListener('keydown',event => {
   if ($('#confirm').open || event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;

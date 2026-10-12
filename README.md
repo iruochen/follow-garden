@@ -53,7 +53,7 @@ npm run package
 npm run preview
 ```
 
-Preview: `http://127.0.0.1:4173/extension/ui/index.html` (demo only). Website: `http://127.0.0.1:4173/site/`. The package command creates `dist/follow-garden-0.1.0.zip`.
+Preview: `http://127.0.0.1:4173/extension/ui/index.html` (demo only). Website: `http://127.0.0.1:4173/site/`. The package command creates `dist/follow-garden-0.1.1.zip`.
 
 Checks cover synthetic scenarios and local assets. They do not certify availability of live X endpoints or successful real unfollow operations.
 

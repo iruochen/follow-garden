@@ -79,3 +79,10 @@ test('旧版关注者资料只允许精确只读路径，在关联标签直接�
  for(const url of ['https://api.x.com/1.1/followers/ids.json','https://api.x.com.evil.example/1.1/followers/list.json','https://user@api.x.com/1.1/followers/list.json','https://api.x.com/1.1/friendships/destroy.json'])await read(url,{method:'GET'});
  await read('https://api.x.com/1.1/followers/list.json',{method:'POST'});assert.equal(calls,1);assert.equal(fallbacks,5);await read.cleanup();
 });
+
+test('直接关注只对 api.x.com 精确资料路径 GET 使用既有关联标签',async()=>{
+  let calls=0,fallbacks=0;const read=listTransport({tabId:7,nativeFollowers:false},{executeScript:async o=>{calls++;assert.equal(o.args[0],'https://api.x.com/1.1/friends/list.json?count=200');return [{frameId:0,result:{ok:true,status:200,body:'{}'}}];}},async()=>{fallbacks++;return new Response('{}');});
+  await read('https://api.x.com/1.1/friends/list.json?count=200',{method:'GET'});
+  for(const url of ['https://api.x.com/1.1/friends/ids.json','https://api.x.com.evil.example/1.1/friends/list.json','https://user@api.x.com/1.1/friends/list.json'])await read(url,{method:'GET'});
+  await read('https://api.x.com/1.1/friends/list.json',{method:'POST'});assert.equal(calls,1);assert.equal(fallbacks,4);
+});

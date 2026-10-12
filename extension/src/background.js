@@ -8,6 +8,7 @@ import {listTransport} from './list-transport.js';
 const live = new XSession();
 live.nativeFollowers=false;
 live.directFollowers=true;
+live.directFollowing=true;
 live.fetcher=listTransport(live,chrome.scripting,fetch,chrome.tabs);
 const service = new GardenService({load: async () => (await chrome.storage.local.get('garden')).garden, persist: data => chrome.storage.local.set({garden: data}), live});
 const readSettings=new ReadSettings(chrome.storage,chrome.permissions);
