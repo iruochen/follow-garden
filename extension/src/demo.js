@@ -27,6 +27,14 @@ export class DemoAdapter {
     const u = state.snapshot.users.find(u => u.id === id);
     return {following: u?.following, followedBy: u?.followedBy};
   }
+  async checkBlocking(owner,id) {
+    const state=this.get();if(state.mode!=='demo'||state.accountId!==owner)throw new Error('示例账号已切换');
+    return state.snapshot.users.concat(state.snapshot.followerUsers||[]).find(u=>u.id===id)?.blocking===true;
+  }
+  async block(owner,id) {
+    const state=this.get();if(state.mode!=='demo'||state.accountId!==owner||!/^demo-user-\d+$/.test(id))throw new Error('示例账号无效');
+    for(const user of state.snapshot.users.concat(state.snapshot.followerUsers||[]).filter(u=>u.id===id))user.blocking=true;
+  }
   async unfollow(owner, id) {
     await new Promise(resolve => setTimeout(resolve, 800));
     const state = this.get();

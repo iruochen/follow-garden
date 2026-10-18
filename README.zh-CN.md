@@ -20,6 +20,8 @@
 
 保护和未知关系不会进入取关任务；不完整粉丝集不能证明未回关。X 接口可能变化或限流，结果未知的写请求不会自动重发。
 
+头像与昵称可在新标签页打开 X 主页；支持确认后单独拉黑账号，结果不明时只读核实，不自动重试。真实拉黑尚待实际账号验收。
+
 ## 安装
 
 Follow Garden 已通过审核并公开上架，可直接从 [Chrome 应用商店](https://chromewebstore.google.com/detail/follow-garden-x-following/njapleffcdeikalapdhkgkpbbhdnlmcg) 安装，然后从工具栏打开关注花园。
@@ -53,7 +55,7 @@ npm run package
 npm run preview
 ```
 
-扩展示例：`http://127.0.0.1:4173/extension/ui/index.html`；网站：`http://127.0.0.1:4173/site/`。打包输出 `dist/follow-garden-0.1.1.zip`。
+扩展示例：`http://127.0.0.1:4173/extension/ui/index.html`；网站：`http://127.0.0.1:4173/site/`。打包输出 `dist/follow-garden-0.1.2.zip`。
 
 测试使用合成数据及本地素材检查，不证明实时接口长期可用或真实取关成功。
 

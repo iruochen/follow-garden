@@ -15,6 +15,7 @@ A free, open-source browser extension for reviewing your X following. Browse rel
 - A protection list with notes and direct removal controls.
 - One refresh loads following and followers in sequence, with live progress and cancellation.
 - Single or selected batch unfollow review, confirmation, pause and per-account results.
+- Open profile avatars/names in a new tab and confirm individual blocks, with read-only verification for uncertain results.
 - English and Simplified Chinese, local storage, CSV export and data clearing.
 - Free X web-session reads, or optional TwitterAPI.io with your own key and provider charges.
 
@@ -32,7 +33,7 @@ For development or manual installation:
 4. Open Follow Garden from the toolbar. The fictional demo works without an X account.
 5. For live data, choose **Connect X**, grant optional X access, and click **Refresh data**. An existing signed-in X tab is reused when available.
 
-Live unfollows require a separate confirmation. Use your own account and verify results on X. Reading has been tested in Brave; real unfollow and background recovery still require acceptance testing across environments.
+Live unfollows require a separate confirmation. Use your own account and verify results on X. Reading has been tested in Brave; real unfollow, blocking and background recovery still require acceptance testing across environments.
 
 ## Read modes and privacy
 
@@ -53,7 +54,7 @@ npm run package
 npm run preview
 ```
 
-Preview: `http://127.0.0.1:4173/extension/ui/index.html` (demo only). Website: `http://127.0.0.1:4173/site/`. The package command creates `dist/follow-garden-0.1.1.zip`.
+Preview: `http://127.0.0.1:4173/extension/ui/index.html` (demo only). Website: `http://127.0.0.1:4173/site/`. The package command creates `dist/follow-garden-0.1.2.zip`.
 
 Checks cover synthetic scenarios and local assets. They do not certify availability of live X endpoints or successful real unfollow operations.
 

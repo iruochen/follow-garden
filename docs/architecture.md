@@ -9,9 +9,11 @@ Follow Garden is a Manifest V3 extension with a static product website. The exte
 - `extension/ui/`: bilingual management page and toolbar popup. User actions use a narrow extension message interface.
 - `extension/src/background.js`: initializes settings, readers, connection observation and the local service.
 - `service.js` and `domain.js`: account-scoped state, relationship evidence, protection and review eligibility, refresh previews and persistence.
-- `session.js`, `connection.js`, `request-observer.js`, `list-transport.js`: temporary X-session observation, identity checks and fixed read-only requests in the connected X tab.
+- `session.js`, `connection.js`, `request-observer.js`, `list-transport.js`: temporary X-session observation, identity checks and fixed requests in the connected X tab (reads and a separately confirmed single-account block).
 - `twitter-api.js` and `read-settings.js`: optional provider key storage, independent request authentication, queued reads and pagination.
 - `runner.js`: confirmed unfollow tasks, sequential relationship rechecks, pause/cancel and uncertain-result recovery.
+
+- `block.js`: single-account blocks, protection/owner checks, persisted uncertain results and read-only reconciliation.
 
 ## Data flow
 

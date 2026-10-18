@@ -60,7 +60,7 @@ export class XSession {
     try { response = await this.fetcher(url.href, {method, headers, credentials: 'include', cache:'no-store', body, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000)}); }
     catch (e) {
       const target = url.hostname + url.pathname;
-      const writeWarning = method === 'POST' ? '取关请求的结果可能未知，请先核实，不会重试。' : '只读请求失败，没有因此执行取关。';
+      const writeWarning = method === 'POST' ? '操作结果可能未知，请先核实，不会重试。' : '只读请求失败，没有因此执行取关。';
       if (/illegal invocation/i.test(e.message || '')) throw new GardenError('FETCH_CALL', '请求调用方式错误，网络请求没有发出，请更新扩展。');
       if (signal?.aborted) throw new GardenError('CANCELLED', '读取已取消。');
       if (e.name === 'TimeoutError') throw new GardenError('TIMEOUT', target + ' 请求超过 20 秒。' + writeWarning);
@@ -213,6 +213,22 @@ export class XSession {
     const s = d.relationship?.source, t = d.relationship?.target;
     if (s?.id_str !== owner || t?.id_str !== id || typeof s.following !== 'boolean' || typeof s.followed_by !== 'boolean') throw new GardenError('FORMAT', '无法确认账号关系，未执行取关。');
     return {following: s.following, followedBy: s.followed_by};
+  }
+  async checkBlocking(owner,id) {
+    if(!/^\d{1,30}$/.test(id)||id===owner)throw new GardenError('ID','账号无效。');
+    await this.assertOwner(owner);
+    const url=new URL('https://api.x.com/1.1/friendships/show.json');
+    url.search=new URLSearchParams({source_id:owner,target_id:id}).toString();
+    const data=await this.fetchURL(url,{...this.headers});
+    const source=data.relationship?.source,target=data.relationship?.target;
+    if(source?.id_str!==owner||target?.id_str!==id||typeof source.blocking!=='boolean')throw new GardenError('FORMAT','无法确认拉黑状态。');
+    await this.assertOwner(owner);return source.blocking;
+  }
+  async block(owner,id) {
+    if(!/^\d{1,30}$/.test(id)||id===owner)throw new GardenError('ID','账号无效。');
+    await this.assertOwner(owner);
+    const url=new URL('https://api.x.com/1.1/blocks/create.json');
+    await this.fetchURL(url,{...this.headers,'content-type':'application/x-www-form-urlencoded'},'POST',new URLSearchParams({user_id:id}).toString());
   }
   async unfollow(owner, id) {
     if (!/^\d{1,30}$/.test(id)) throw new GardenError('ID', '示例 ID 不可发送给 X。');

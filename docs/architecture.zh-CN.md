@@ -9,9 +9,11 @@
 - `extension/ui/`：双语管理页与工具栏 popup，通过限定的扩展消息接口发起操作。
 - `background.js`：初始化设置、读取器、会话监听及本地服务。
 - `service.js` / `domain.js`：按账号隔离状态、关系证据、保护和待处理资格、临时预览与持久化。
-- `session.js` / `connection.js` / `request-observer.js` / `list-transport.js`：临时观察 X 会话、核实身份，在关联 X 标签执行固定只读请求。
+- `session.js` / `connection.js` / `request-observer.js` / `list-transport.js`：临时观察 X 会话、核实身份，在关联 X 标签执行固定请求（读取及独立确认的单用户拉黑）。
 - `twitter-api.js` / `read-settings.js`：可选 Key 存储、独立第三方认证、顺序排队与分页。
 - `runner.js`：确认后的取关任务、逐项关系复核、暂停、取消及结果不明的恢复规则。
+
+- `block.js`：单用户拉黑、保护与账号核实、持久化不确定结果和只读复核。
 
 ## 数据流
 

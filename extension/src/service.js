@@ -1,21 +1,22 @@
 import {GardenError, candidates, eligible, validId} from './domain.js';
 import {demoState, DemoAdapter} from './demo.js';
+import {runBlock,recoverBlock} from './block.js';
 import {TaskRunner, recoverJob} from './runner.js';
 export class GardenService {
-  constructor({load, persist, live = null}) { this.load = load; this.persist = persist; this.live = live; this.state = null; this.scanController = null; this.runner = null; this.scanning = false; this.scanProgress = null; this.scanPreview = null; this.reconciling = false; this.reader = null; this.saves = Promise.resolve(); }
+  constructor({load, persist, live = null}) { this.load = load; this.persist = persist; this.live = live; this.state = null; this.scanController = null; this.runner = null; this.scanning = false; this.scanProgress = null; this.scanPreview = null; this.reconciling = false; this.blocking = false; this.reader = null; this.saves = Promise.resolve(); }
   async init() {
     const stored = await this.load(); this.state = stored?.state?.version === 1 ? stored.state : demoState(); this.accounts = stored?.accounts || {};
-    recoverJob(this.state.job); this.setRunner(); await this.save();
+    recoverJob(this.state.job);recoverBlock(this.state.blockAction);for(const account of Object.values(this.accounts))recoverBlock(account.blockAction); this.setRunner(); await this.save();
   }
   setRunner() { this.runner = new TaskRunner({get: () => this.state, save: () => this.save(), adapter: this.state.mode === 'demo' ? new DemoAdapter(() => this.state) : this.live}); }
   async save() {
     const data = structuredClone({state: this.state, accounts: this.accounts});
     this.saves = this.saves.catch(() => {}).then(() => this.persist(data)); return this.saves;
   }
-  ensureIdle() { if (this.runner.active || ['running', 'pausing'].includes(this.state.job?.status) || this.scanning || this.reconciling) throw new GardenError('BUSY', '请先暂停任务或取消读取，再切换数据。'); }
+  ensureIdle() { if (this.runner.active || ['running', 'pausing'].includes(this.state.job?.status) || this.scanning || this.reconciling || this.blocking) throw new GardenError('BUSY', '请先暂停任务或取消读取，再切换数据。'); }
   switchState(next) {
     const old = this.state;
-    this.accounts[old.accountId] = {protections: old.protections, review: old.review, job: old.job};
+    this.accounts[old.accountId] = {protections: old.protections, review: old.review, job: old.job, blockAction:old.blockAction};
     const saved = this.accounts[next.accountId];
     this.state = {...next, ...(saved || {})};
     // Refresh must not resurrect a successfully unfollowed candidate in pending lists.
@@ -38,7 +39,9 @@ export class GardenService {
     else {snapshot.followerUsers=page.users.map(u=>({...u,followedBy:true}));snapshot.followerIds=page.users.map(u=>u.id);snapshot.followersComplete=page.complete;snapshot.followerProfilesComplete=page.complete;}
   }
   async invoke(type, payload = {}) {
-    if (type === 'state') return {state: structuredClone(this.scanPreview || this.state), scanning: this.scanning, scanProgress:structuredClone(this.scanProgress), reconciling: this.reconciling, connection: this.live?.status() || {connected: false, ready: false}};
+    if (type === 'state') return {state: structuredClone(this.scanPreview || this.state), scanning: this.scanning, scanProgress:structuredClone(this.scanProgress), reconciling: this.reconciling, blocking:this.blocking, connection: this.live?.status() || {connected: false, ready: false}};
+    if(this.blocking)throw new GardenError('BUSY','请等待拉黑操作完成。');
+    if(type==='block'||type==='reconcile-block')return runBlock(this,payload,type==='reconcile-block');
     if (this.scanning && type !== 'cancel-scan') throw new GardenError('BUSY','请等待读取完成或取消读取后再修改数据。');
     if (type === 'demo') { this.ensureIdle(); this.switchState(demoState()); this.state = demoState(); this.setRunner(); await this.save(); return; }
     if (type === 'scan') {
@@ -78,7 +81,7 @@ export class GardenService {
       this.ensureIdle();
       if (this.state.mode === 'live' && (!this.live?.status().ready || payload.liveConsent !== true)) throw new GardenError('CONSENT', '真实取关需要当前可用会话和本次明确确认。');
       if (payload.accountId !== this.state.accountId) throw new GardenError('IDENTITY', '账号已切换，请重新确认。');
-      if (this.state.job?.items.some(i => i.status === 'uncertain')) throw new GardenError('UNCERTAIN', '上一任务存在结果待核实的账号，请先核实，不创建新的重复任务。');
+      if (this.state.blockAction?.status==='uncertain'||this.state.job?.items.some(i => i.status === 'uncertain')) throw new GardenError('UNCERTAIN', '上一任务存在结果待核实的账号，请先核实，不创建新的重复任务。');
       const items = candidates(this.state, payload.ids);
       this.state.job = {id: crypto.randomUUID(), owner: this.state.accountId, mode: this.state.mode, at: new Date().toISOString(), status: 'running', message: '正在复核所选账号', items};
       await this.save(); void this.runner.run().catch(() => { /* Storage failure: recovery pauses before further writes. */ }); return;
@@ -87,6 +90,7 @@ export class GardenService {
     if (type === 'resume') {
       this.ensureIdle();
       const job = this.state.job;
+      if(this.state.blockAction?.status==='uncertain')throw new GardenError('UNCERTAIN','请先核实拉黑结果。');
       if (this.runner.active || !job || !['paused', 'stopped'].includes(job.status)) throw new GardenError('BUSY', '现在不能继续该任务。');
       if (job.items.some(i => i.status === 'uncertain')) throw new GardenError('UNCERTAIN', '存在待核实结果，不能自动重放。请在 X 核实并重新读取数据。');
       job.status = 'running'; job.error = null; job.message = '正在重新核实剩余账号'; await this.save();
