@@ -285,3 +285,21 @@ test('直接关注限流或格式错误保留部分结果，不回退 GraphQL；
     assert.equal(page,2);
   }
 });
+
+test('单用户拉黑核实 source/target 和 blocking，固定 POST 不重试；示例与本人 ID 拦截',async()=>{
+ let writes=0;const s=ready(async(url,options)=>{
+  if(url.endsWith('/home'))return identity();
+  const target=new URL(url);assert.equal(target.origin,'https://api.x.com');
+  if(target.pathname==='/1.1/friendships/show.json')return json({relationship:{source:{id_str:'123',blocking:false},target:{id_str:'456'}}});
+  assert.equal(target.pathname,'/1.1/blocks/create.json');assert.equal(options.method,'POST');assert.equal(options.body,'user_id=456');writes++;return new Response('{}',{status:429});
+ });
+ assert.equal(await s.checkBlocking('123','456'),false);
+ await assert.rejects(s.block('123','456'),{code:'RATE_LIMIT'});assert.equal(writes,1);
+ for(const id of ['123','demo-user-1','bad'])await assert.rejects(s.block('123',id),{code:'ID'});
+});
+test('拉黑关系返回身份不匹配或缺失 blocking 时拒绝确认',async()=>{
+ for(const source of [{id_str:'999',blocking:true},{id_str:'123'}]){
+  const s=ready(async url=>url.endsWith('/home')?identity():json({relationship:{source,target:{id_str:'456'}}}));
+  await assert.rejects(s.checkBlocking('123','456'),{code:'FORMAT'});
+ }
+});

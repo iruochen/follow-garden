@@ -10,7 +10,8 @@ export function isFollowersURL(value) {
 export function listTransport(session, scripting, fallback=fetch, tabs=null) {
   let observerTab=null,returnTab=null;
   const transport=async (url,options) => {
-    if (options.method!=='GET' || !(isListURL(url) || isFollowersURL(url) || url==='https://x.com/home' || url==='https://api.x.com/1.1/account/settings.json')) return fallback(url,options);
+    const block=url==='https://api.x.com/1.1/blocks/create.json'&&options.method==='POST';
+    if (!block && (options.method!=='GET' || !(isListURL(url) || isFollowersURL(url) || url==='https://x.com/home' || url==='https://api.x.com/1.1/account/settings.json' || isBlockCheckURL(url)))) return fallback(url,options);
     if (options.signal?.aborted) throw options.signal.reason || new DOMException('Cancelled','AbortError');
     const tabId=session.tabId;
     if (tabId===null) throw new TypeError('X tab unavailable');
@@ -22,13 +23,13 @@ export function listTransport(session, scripting, fallback=fetch, tabs=null) {
         if(active && active.id!==tabId){returnTab={id:active.id,windowId:target.windowId};await tabs.update(tabId,{active:true});}
       }
     }
-    const results=await scripting.executeScript({target:{tabId},world:'MAIN',func:followers?nativeFollowersPage:async (url,headers)=>{
+    const results=await scripting.executeScript({target:{tabId},world:'MAIN',func:followers?nativeFollowersPage:async (url,headers,method='GET',body=undefined)=>{
       try {
         if(location.origin!=='https://x.com')return {ok:false};
-        const response=await fetch(url,{method:'GET',headers,credentials:'include',cache:'no-store',signal:AbortSignal.timeout(20000)});
+        const response=await fetch(url,{method,headers,body,credentials:'include',cache:'no-store',signal:AbortSignal.timeout(20000)});
         return {ok:true,status:response.status,body:await response.text()};
       } catch {return {ok:false};}
-    },args:followers?[url,session.accountHandle]:[url,options.headers]});
+    },args:followers?[url,session.accountHandle]:block?[url,options.headers,'POST',options.body]:[url,options.headers]});
     const response=results?.find(r=>r.frameId===0)?.result;
     if (options.signal?.aborted) throw options.signal.reason || new DOMException('Cancelled','AbortError');
     if(response?.error==='TIMEOUT')throw new DOMException('Native page timeout','TimeoutError');
@@ -43,3 +44,7 @@ export function listTransport(session, scripting, fallback=fetch, tabs=null) {
   return transport;
 }
 import {nativeFollowersPage} from './native-followers.js';
+
+function isBlockCheckURL(value) {
+  try {const url=new URL(value);return url.origin==='https://api.x.com'&&url.pathname==='/1.1/friendships/show.json'&&!url.username&&!url.password;}catch{return false;}
+}

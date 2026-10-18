@@ -1,5 +1,21 @@
 # Changelog / 更新记录
 
+## 0.1.2 — 2026-10-18
+
+- Open profile avatars and names in a new X tab while keeping row selection separate.
+- Add confirmed single-account blocking with protection checks, account isolation and read-only verification for uncertain results. No batch blocking or automatic write replay.
+- Update bilingual privacy disclosures for block records and requests. No new permissions or production dependencies.
+
+中文：
+
+- 头像与昵称支持新标签打开 X 主页，行内其他区域保留详情选择。
+- 新增确认后的单用户拉黑，保护账号拦截、账号隔离、不确定结果只读核实；不提供批量拉黑或自动重试写入。
+- 同步双语隐私说明，未新增权限或生产依赖。
+
+Validation: 118 synthetic tests and browser interaction checks passed. Real X blocking has not been executed for acceptance testing.
+
+验证：118 项合成测试和浏览器交互检查通过；真实 X 拉黑尚未执行验收。
+
 ## 0.1.1 — 2026-10-13
 
 - Read following profiles directly in pages of up to 200, reducing requests and removing the need to capture a Following GraphQL template.

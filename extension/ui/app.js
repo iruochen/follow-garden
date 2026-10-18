@@ -14,7 +14,7 @@ let selection = new Set(), confirmIds = [], confirmOwner = null, busy = false, t
 const pageSize = 50;
 const number = value => value == null ? t('unknownValue') : new Intl.NumberFormat(locale(), {notation: value >= 10000 ? 'compact' : 'standard', maximumFractionDigits:1}).format(value);
 const date = value => value ? new Intl.DateTimeFormat(locale(),{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(value)) : t('unknownValue');
-const locked = () => activeTask() || data.scanning || data.reconciling || busy;
+const locked = () => activeTask() || data.scanning || data.reconciling || data.blocking || busy;
 const readMode = () => data.readConfig?.mode || 'web';
 const apiReady = () => !!(data.readConfig?.keyReady && data.readConfig?.handle);
 const profilesComplete = () => state.snapshot.followerProfilesComplete ?? (state.snapshot.followersComplete && Array.isArray(state.snapshot.followerUsers));
@@ -23,6 +23,14 @@ const activeTask = () => ['running','pausing'].includes(state?.job?.status);
 function avatar(u, large=false) {
   const tone=[...u.id].reduce((n,c)=>n+c.charCodeAt(0),0)%4, initials=[...(u.name||'?').trim()].slice(0,2).join('').toUpperCase(),url=safeAvatar(u.avatarUrl);
   return `<span class="avatar tone-${tone}${large?' large':''}" aria-hidden="true"><span>${esc(initials)}</span>${url?`<img src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:''}</span>`;
+}
+function profileAnchor(u,content,kind,classes='') {
+  const url=state.mode==='live'?profileUrl(u):null;
+  return url?`<a class="${classes}" data-profile="${esc(u.id+'-'+kind)}" href="${esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(t('openProfile',{name:u.name}))}">${content}</a>`:`<span class="${classes}">${content}</span>`;
+}
+function blockButton(u) {
+  const protectedUser=Object.hasOwn(state.protections,u.id);
+  return `<button class="link-button row-block" data-block="${u.id}" ${locked()||protectedUser?'disabled':''} title="${t(protectedUser?'blockProtected':'block')}" aria-label="${esc(t('block')+' '+u.name)}">${t('block')}</button>`;
 }
 function tag(u) { const r = view==='followers' ? (state.snapshot.users.some(v=>v.id===u.id&&v.following===true)||u.following===true?'mutual':u.following===false||state.snapshot.followingComplete?'followerOnly':'followerUnknown') : relation(u,state.snapshot); return '<span class="tag ' + r + '">' + t(r) + '</span>'; }
 function toast(message) { clearTimeout(toastTimer); $('#toast').textContent = message; $('#toast').classList.add('visible'); toastTimer = setTimeout(() => $('#toast').classList.remove('visible'),6500); }
@@ -33,7 +41,7 @@ function focusBookmark() {
   let selector;
   if (el.id) selector = '#' + CSS.escape(el.id);
   else if (el.matches('[data-language]')) selector = el.closest('#detail') ? '#detail [data-language]' : '.topbar [data-language]';
-  else for (const key of ['select','view','unfollow','focus']) {
+  else for (const key of ['select','view','unfollow','block','profile','focus']) {
     if (el.dataset[key]) { selector = `${el.tagName.toLowerCase()}[data-${key}="${CSS.escape(el.dataset[key])}"]`; break; }
   }
   return selector ? {selector, start:el.selectionStart, end:el.selectionEnd} : null;
@@ -45,6 +53,7 @@ function restoreFocus(bookmark) {
   el.focus({preventScroll:true});
   if ((el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) && ['text','password','search',undefined].includes(el.type) && bookmark.start != null) el.setSelectionRange(bookmark.start,bookmark.end);
 }
+let blockDialog=null;
 let dialogOpener = null, confirmSingle = false, singleTask = null;
 function openDialog() {
   dialogOpener = focusBookmark();
@@ -97,7 +106,7 @@ function renderContent() {
   $('#source').classList.toggle('connected',readMode()==='api'?apiReady():state.mode==='live'&&data.connection.ready);
   $('#source').textContent=readMode()==='api'?t(apiReady()?'apiConfigured':'apiNeedsKey'):state.mode==='live'?t(data.connection.ready?'connected':'reconnectNeeded'):t('demoMode');
   $('#connect').textContent=t(data.connection.connected?'reconnect':'connect');$('#connect').disabled=locked();
-  $('#refresh').disabled=activeTask()||data.reconciling||(busy&&!data.scanning)||(!data.scanning&&!(readMode()==='api'?apiReady():data.connection.ready));
+  $('#refresh').disabled=activeTask()||data.reconciling||data.blocking||(busy&&!data.scanning)||(!data.scanning&&!(readMode()==='api'?apiReady():data.connection.ready));
   $('#refresh').textContent=t(data.scanning?'cancelRead':'read');$('#refresh').title=t(data.scanning?'cancelRead':'readAllHint');$('#search').disabled=['job','settings'].includes(view);
   renderConnection();
   if(view==='job'){renderJob();return;}if(view==='settings'){renderSettings();return;}renderList();renderDetail();
@@ -136,20 +145,21 @@ function renderListContent() {
   if(!data.scanning&&view==='followers'&&(state.snapshot.followerProfilesError || state.snapshot.followersError))$('#list-header').insertAdjacentHTML('beforeend',`<div class="notice">${t('followersReadFailed')} ${esc(errorText(state.snapshot.followerProfilesError || state.snapshot.followersError))}</div>`);
   if(view==='followers'&&state.snapshot.followerPagingUnavailable)$('#list-header').insertAdjacentHTML('beforeend',`<div class="notice">${t('followerPagingHint')}</div>`);
   if(state.mode==='live'&&(state.snapshot.provider || 'web')!==readMode())$('#list-header').insertAdjacentHTML('beforeend',`<div class="notice">${t('modeChangedHint')}</div>`);
+  if(state.blockAction?.status==='uncertain')$('#list-header').insertAdjacentHTML('beforeend',`<div class="notice block-notice"><p>${esc(t('blockUncertain',{name:state.blockAction.name}))}</p><button id="reconcile-block" class="button small" ${locked()?'disabled':''}>${t('verifyBlock')}</button></div>`);
   $('#sort').value=sort;
-  $('#list').innerHTML=visible.map(u=>`<article class="account-row ${focused===u.id?'focused':''}" data-focus="${u.id}">${view==='followers'?'<span class="follower-marker" aria-hidden="true">↙</span>':`<input type="checkbox" class="check" data-select="${u.id}" aria-label="${esc(t('selectUser',{name:u.name}))}" ${selection.has(u.id)?'checked ':''}${!eligible(u,state)||locked()?'disabled':''}>`}${avatar(u)}<div class="row-body"><button class="row-title" data-focus="${u.id}" aria-label="${esc(t('viewUser',{name:u.name}))}"><strong>${esc(u.name)}</strong><span class="row-handle">@${esc(u.handle)}</span></button><div class="row-meta">${tag(u)}${Object.hasOwn(state.protections,u.id)?`<span class="tag protected">◇ ${t('protectedTag')}</span>`:''}</div><div class="row-metrics"><span><b>${number(u.followers)}</b><small>${t('followers')}</small></span><span><b>${number(u.friends)}</b><small>${t('following')}</small></span></div><p class="row-bio">${esc(u.bio||t('noBio'))}</p></div>${view==='followers'?'':view==='protected'?`<button class="button small row-unfollow" data-unprotect="${u.id}" ${locked()?'disabled':''} aria-label="${esc(t('unprotect')+' '+u.name)}">${t('unprotect')}</button>`:`<button class="button small danger row-unfollow" data-unfollow="${u.id}" ${!eligible(u,state)||locked()?'disabled':''} aria-label="${esc(t('unfollow')+' '+u.name)}" title="${t(eligible(u,state)?'unfollow':'cannotUnfollow')}">${t('unfollow')}</button>`}</article>`).join('')||`<div class="empty"><div class="empty-symbol">∅</div>${t(query||(view==='not-following-back'&&(followerRange.min!==null||followerRange.max!==null))?'noMatches':view==='review'?'emptyReview':view==='followers'&&!profilesComplete()?'followersNotLoaded':'emptyCategory')}</div>`;
+  $('#list').innerHTML=visible.map(u=>`<article class="account-row ${focused===u.id?'focused':''}" data-focus="${u.id}">${view==='followers'?'<span class="follower-marker" aria-hidden="true">↙</span>':`<input type="checkbox" class="check" data-select="${u.id}" aria-label="${esc(t('selectUser',{name:u.name}))}" ${selection.has(u.id)?'checked ':''}${!eligible(u,state)||locked()?'disabled':''}>`}${profileAnchor(u,avatar(u),'avatar','profile-avatar')}<div class="row-body">${profileAnchor(u,`<strong>${esc(u.name)}</strong><span class="row-handle">@${esc(u.handle)}</span>`,'name','row-title')}<div class="row-meta">${tag(u)}${Object.hasOwn(state.protections,u.id)?`<span class="tag protected">◇ ${t('protectedTag')}</span>`:''}</div><div class="row-metrics"><span><b>${number(u.followers)}</b><small>${t('followers')}</small></span><span><b>${number(u.friends)}</b><small>${t('following')}</small></span></div><p class="row-bio">${esc(u.bio||t('noBio'))}</p></div><div class="row-actions">${view==='followers'?'':view==='protected'?`<button class="button small row-unfollow" data-unprotect="${u.id}" ${locked()?'disabled':''} aria-label="${esc(t('unprotect')+' '+u.name)}">${t('unprotect')}</button>`:`<button class="button small danger row-unfollow" data-unfollow="${u.id}" ${!eligible(u,state)||locked()?'disabled':''} aria-label="${esc(t('unfollow')+' '+u.name)}" title="${t(eligible(u,state)?'unfollow':'cannotUnfollow')}">${t('unfollow')}</button>`}${blockButton(u)}</div></article>`).join('')||`<div class="empty"><div class="empty-symbol">∅</div>${t(query||(view==='not-following-back'&&(followerRange.min!==null||followerRange.max!==null))?'noMatches':view==='review'?'emptyReview':view==='followers'&&!profilesComplete()?'followersNotLoaded':'emptyCategory')}</div>`;
   $('#list-footer').innerHTML=selection.size?`<div class="list-bottom bulk-bar"><small>${t('selected',{n:selection.size})}</small><div class="bulk-actions"><button class="button small" id="review-selected" ${locked()?'disabled':''}>${t('addReview')}</button><button class="button small danger" id="bulk" ${locked()?'disabled':''}>${t('bulk')}</button></div></div>`:`<div class="list-bottom"><small>${state.mode==='demo'?t('demoSafe'):view==='followers'&&state.snapshot.provider==='api'?t('profileLoaded',{n:users.length,ids:state.snapshot.followerIds.length}):t('updated',{date:date(state.snapshot.observedAt)})}</small><div class="page-controls"><button id="prev-page" aria-label="${t('previous')}" ${page===0?'disabled':''}>‹</button><span>${users.length?page+1:0}/${Math.ceil(users.length/pageSize)}</span><button id="next-page" aria-label="${t('next')}" ${(page+1)*pageSize>=users.length?'disabled':''}>›</button></div></div>`;
 }
 function renderDetail() {
   const u=(view==='followers'?followerProfiles(state):state.snapshot.users).find(u=>u.id===focused);
   if(!u){$('#detail').innerHTML=`<div class="detail-empty"><h2>${t('chooseUser')}</h2><p>${t('chooseHint')}</p></div>`;return;}
   if(view==='followers') {
-    $('#detail').innerHTML=`<div class="detail-topline"><span>${t('detail')}</span>${state.mode==='live'&&profileUrl(u)?`<a href="${esc(profileUrl(u))}" target="_blank" rel="noopener noreferrer">${t('viewX')}</a>`:`<span>${t('sourceDemo')}</span>`}</div><div class="detail-profile">${avatar(u,true)}<div><h2>${esc(u.name)}</h2><span class="handle">@${esc(u.handle)}</span></div></div><div class="detail-tags">${tag(u)}</div><p class="detail-bio">${esc(u.bio||t('noBio'))}</p><div class="metrics"><div class="metric"><strong>${number(u.followers)}</strong><small>${t('followers')}</small></div><div class="metric"><strong>${number(u.friends)}</strong><small>${t('following')}</small></div></div><div class="evidence"><strong>${t('followerEvidence')}</strong><p>${t('followersBrowse')}</p><p>${source()} · ${date(state.snapshot.observedAt)}</p></div>`;
+    $('#detail').innerHTML=`<div class="detail-topline"><span>${t('detail')}</span>${state.mode==='live'&&profileUrl(u)?`<a href="${esc(profileUrl(u))}" target="_blank" rel="noopener noreferrer">${t('viewX')}</a>`:`<span>${t('sourceDemo')}</span>`}</div><div class="detail-profile">${profileAnchor(u,avatar(u,true),'avatar','profile-avatar')}<div><h2>${profileAnchor(u,esc(u.name),'name','profile-name')}</h2><span class="handle">@${esc(u.handle)}</span></div></div><div class="detail-tags">${tag(u)}</div><p class="detail-bio">${esc(u.bio||t('noBio'))}</p><div class="metrics"><div class="metric"><strong>${number(u.followers)}</strong><small>${t('followers')}</small></div><div class="metric"><strong>${number(u.friends)}</strong><small>${t('following')}</small></div></div><div class="evidence"><strong>${t('followerEvidence')}</strong><p>${t('followersBrowse')}</p><p>${source()} · ${date(state.snapshot.observedAt)}</p></div>`;
     return;
   }
   const protectedAccount=Object.hasOwn(state.protections,u.id),r=relation(u,state.snapshot);
   const evidence=typeof u.followedBy==='boolean'?'evidenceField':state.snapshot.followerIds.includes(u.id)?'evidenceFollower':state.snapshot.followersComplete?'evidenceAbsent':'evidencePartial';
-  $('#detail').innerHTML=`<div class="detail-topline"><span>${t('detail')}</span>${state.mode==='live'&&profileUrl(u)?`<a href="${esc(profileUrl(u))}" target="_blank" rel="noopener noreferrer">${t('viewX')}</a>`:`<span>${t('sourceDemo')}</span>`}</div><div class="detail-profile">${avatar(u,true)}<div><h2>${esc(u.name)}</h2><span class="handle">@${esc(u.handle)}</span></div></div><div class="detail-tags">${tag(u)}${protectedAccount?`<span class="tag protected">◇ ${t('protected')}</span>`:''}</div><p class="detail-bio">${esc(u.bio||t('noBio'))}</p><div class="metrics"><div class="metric"><strong>${number(u.followers)}</strong><small>${t('followers')}</small></div><div class="metric"><strong>${number(u.friends)}</strong><small>${t('following')}</small></div></div><div class="section-label">${t('evidence')}</div><div class="evidence"><strong>${t(r)}</strong><p>${t(evidence)}</p><p>${source()} · ${date(state.snapshot.observedAt)}</p><p>${t('recheckHint')}</p></div><div class="section-label">${t('note')}</div><textarea id="note" class="notes" maxlength="500" aria-label="${t('note')}" placeholder="${t('notePlaceholder')}">${esc(drafts.get(state.accountId+':'+u.id)??state.protections[u.id]?.note??'')}</textarea><div class="detail-actions"><button class="button" id="protect" ${locked()?'disabled':''}>${t(protectedAccount?'saveNote':'protect')}</button>${protectedAccount?`<button class="link-button" id="unprotect" ${locked()?'disabled':''}>${t('unprotect')}</button>`:''}<button class="button danger" data-unfollow="${u.id}" ${!eligible(u,state)||locked()?'disabled':''}>${t('unfollow')}</button></div><div class="action-section"><div><h3>${t(state.review.includes(u.id)?'inReview':'later')}</h3><p>${t(protectedAccount?'protectedHint':r==='unknown'?'unknownHint':'reviewHint')}</p></div><button class="button" id="review-one" ${!eligible(u,state)||locked()?'disabled':''}>${t(state.review.includes(u.id)?'removeReview':'addReview')}</button></div>`;
+  $('#detail').innerHTML=`<div class="detail-topline"><span>${t('detail')}</span>${state.mode==='live'&&profileUrl(u)?`<a href="${esc(profileUrl(u))}" target="_blank" rel="noopener noreferrer">${t('viewX')}</a>`:`<span>${t('sourceDemo')}</span>`}</div><div class="detail-profile">${profileAnchor(u,avatar(u,true),'avatar','profile-avatar')}<div><h2>${profileAnchor(u,esc(u.name),'name','profile-name')}</h2><span class="handle">@${esc(u.handle)}</span></div></div><div class="detail-tags">${tag(u)}${protectedAccount?`<span class="tag protected">◇ ${t('protected')}</span>`:''}</div><p class="detail-bio">${esc(u.bio||t('noBio'))}</p><div class="metrics"><div class="metric"><strong>${number(u.followers)}</strong><small>${t('followers')}</small></div><div class="metric"><strong>${number(u.friends)}</strong><small>${t('following')}</small></div></div><div class="section-label">${t('evidence')}</div><div class="evidence"><strong>${t(r)}</strong><p>${t(evidence)}</p><p>${source()} · ${date(state.snapshot.observedAt)}</p><p>${t('recheckHint')}</p></div><div class="section-label">${t('note')}</div><textarea id="note" class="notes" maxlength="500" aria-label="${t('note')}" placeholder="${t('notePlaceholder')}">${esc(drafts.get(state.accountId+':'+u.id)??state.protections[u.id]?.note??'')}</textarea><div class="detail-actions"><button class="button" id="protect" ${locked()?'disabled':''}>${t(protectedAccount?'saveNote':'protect')}</button>${protectedAccount?`<button class="link-button" id="unprotect" ${locked()?'disabled':''}>${t('unprotect')}</button>`:''}<button class="button danger" data-unfollow="${u.id}" ${!eligible(u,state)||locked()?'disabled':''}>${t('unfollow')}</button></div><div class="action-section"><div><h3>${t(state.review.includes(u.id)?'inReview':'later')}</h3><p>${t(protectedAccount?'protectedHint':r==='unknown'?'unknownHint':'reviewHint')}</p></div><button class="button" id="review-one" ${!eligible(u,state)||locked()?'disabled':''}>${t(state.review.includes(u.id)?'removeReview':'addReview')}</button></div>`;
 }
 function renderJob() {
  const job=state.job;
@@ -175,6 +185,22 @@ function renderReadSettings() {
  return `<section class="settings-section read-settings"><h3>${t('readMode')}</h3><label class="field-label" for="settings-mode">${t('readMode')}</label><select id="settings-mode" ${locked()?'disabled':''}><option value="web">${t('webMode')}</option><option value="api">TwitterAPI.io</option></select><p class="mode-hint">${t(apiDraft.mode==='api'?'apiIntro':'webReadHint')}</p><div ${apiDraft.mode==='api'?'':'hidden'}><label class="field-label" for="api-handle">${t('apiHandle')}</label><input class="settings-input" id="api-handle" type="text" maxlength="16" spellcheck="false" autocomplete="off" value="${esc(apiDraft.handle)}" placeholder="@username" ${locked()?'disabled':''}><p class="field-hint">${t('apiHandleHint')}</p><label class="field-label" for="api-key">${t('apiKey')}</label><input class="settings-input" id="api-key" type="password" maxlength="512" autocomplete="off" spellcheck="false" placeholder="${t(data.readConfig?.keyReady?'apiKeySaved':'apiKey')}" ${locked()?'disabled':''}><p class="field-hint">${t('apiKeyHint')}</p><label class="consent"><input id="api-remember" type="checkbox" ${apiDraft.remember?'checked':''} ${locked()?'disabled':''}>${t('apiRemember')}</label><p class="field-hint">${t('apiRememberHint')}</p><p class="api-links"><a href="https://twitterapi.io/dashboard" target="_blank" rel="noopener noreferrer">${t('apiAccount')}</a><a href="https://twitterapi.io/pricing" target="_blank" rel="noopener noreferrer">${t('apiPricing')}</a></p><div class="evidence">${t('apiCostHint')}</div></div><div class="detail-actions"><button id="save-reader" class="button primary" ${locked()||!isExtension?'disabled':''}>${t('apiSave')}</button><button id="forget-key" class="button" ${locked()||!data.readConfig?.keyReady?'disabled':''}>${t('apiForget')}</button></div>${!isExtension?`<p>${t('previewHint')}</p>`:''}</section>`;
 }
 function navigate(next) { view = next; selection.clear(); page = 0; render(); }
+function confirmBlock(id) {
+  const u=state.snapshot.users.concat(followerProfiles(state)).find(u=>u.id===id);
+  if(locked()||!u||Object.hasOwn(state.protections,id))return;
+  blockDialog={id,accountId:state.accountId,name:u.name};
+  $('#confirm-content').innerHTML=`<div class="dialog-head"><div><h2 id="dialog-title">${esc(t('blockTitle',{name:u.name}))}</h2><small>${state.mode==='demo'?t('demoConfirm'):esc(t('currentAccount',{handle:state.accountHandle}))}</small></div><button id="close-dialog" class="close" aria-label="${t('close')}">×</button></div><div class="dialog-body"><div class="notice">${t('blockHint')}</div>${state.mode==='live'?`<label class="consent"><input id="block-consent" type="checkbox">${t('blockConsent')}</label>`:`<p>${t('blockDemoHint')}</p>`}</div><div class="dialog-foot"><button id="cancel-dialog" class="button">${t('returnCheck')}</button><button id="execute-block" class="button danger solid" ${state.mode==='live'?'disabled':''}>${t(state.mode==='demo'?'simulateBlock':'confirmBlock')}</button></div>`;
+  openDialog();
+}
+async function executeBlock(reconcile=false) {
+  const choice=blockDialog;
+  if(!reconcile&&(!choice||(state.mode==='live'&&!$('#block-consent')?.checked)))return;
+  const payload=reconcile?{accountId:state.accountId}:{id:choice.id,accountId:choice.accountId,liveConsent:$('#block-consent')?.checked===true};
+  busy=true;if($('#confirm').open)$('#confirm').close();render();toast(t('blockWorking'));
+  try {const result=await command(reconcile?'reconcile-block':'block',payload);toast(t(result.status==='succeeded'?'blockSucceeded':'blockNotConfirmed',{name:result.name}));}
+  catch(error){toast(errorText(error));}
+  finally {busy=false;blockDialog=null;await refresh(true);}
+}
 function confirmSelection(ids=[...selection], single=false) {
  if(!ids.length||locked()||ids.some(id=>!eligible(state.snapshot.users.find(u=>u.id===id),state)))return;
  confirmIds=[...ids];confirmOwner=state.accountId;confirmSingle=single;
@@ -197,9 +223,10 @@ function exportData() {
 }
 document.addEventListener('click',async event => {
   const button = event.target.closest('button'), row = event.target.closest('[data-focus]');
-  if (event.target.closest('[data-select]')) return;
+  if (event.target.closest('[data-select],a[data-profile]')) return;
   if (button?.disabled) return;
   if (button?.dataset.view) { navigate(button.dataset.view); return; }
+  if(button?.dataset.block){confirmBlock(button.dataset.block);return;}
   if (button?.dataset.unprotect) { await action('unprotect',{id:button.dataset.unprotect},t('unprotectSaved')); return; }
   if (button?.dataset.unfollow) { confirmSelection([button.dataset.unfollow],true); return; }
   if (row?.dataset.focus) { focused = row.dataset.focus; renderList(); renderDetail(); return; }
@@ -216,6 +243,8 @@ document.addEventListener('click',async event => {
   if (id === 'forget-key') {apiDraft=null;await action('forget-key',undefined,t('apiForgot'));}
   if (id === 'select-page') { if (selection.size) selection.clear(); else for (const u of filtered().slice(page*pageSize,(page+1)*pageSize)) if (eligible(u,state)) selection.add(u.id); renderList(); }
   if (id === 'prev-page' || id === 'next-page') { page += id === 'prev-page' ? -1 : 1; selection.clear(); renderList(); renderDetail(); $('#list').scrollTop = 0; }
+  if(id==='execute-block')await executeBlock();
+  if(id==='reconcile-block')await executeBlock(true);
   if (id === 'bulk') confirmSelection();
   if (id === 'review-selected') { await action('review',{ids:[...selection]},t('reviewSaved')); selection.clear(); render(); }
   if (id === 'protect') await action('protect',{id:focused,note:$('#note').value},t('protectSaved'));
@@ -284,6 +313,7 @@ document.addEventListener('change',async event => {
   if(event.target.id==='api-remember')apiDraft.remember=event.target.checked;
   if (['follower-low-slider','follower-high-slider','follower-min','follower-max'].includes(event.target.id)) commitFollowerRange();
   if (event.target.id === 'sort') { sort = event.target.value; page = 0; selection.clear(); renderList(); renderDetail(); $('#list').scrollTop = 0; }
+  if(event.target.id==='block-consent')$('#execute-block').disabled=!event.target.checked;
   if (event.target.id === 'live-consent') $('#execute').disabled = !event.target.checked;
 });
 document.addEventListener('input',event => { if(['follower-low-slider','follower-high-slider'].includes(event.target.id))previewFollowerRange(event.target); if(['follower-min','follower-max'].includes(event.target.id)){followerDraft[event.target.id==='follower-min'?'min':'max']=event.target.value;$('#follower-max').setCustomValidity('');} if(event.target.id==='api-handle')apiDraft.handle=event.target.value; if(event.target.id==='api-key')apiDraft.key=event.target.value; if (event.target.id === 'note') drafts.set(state.accountId + ':' + focused,event.target.value); });

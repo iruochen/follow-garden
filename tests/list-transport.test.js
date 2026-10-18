@@ -86,3 +86,13 @@ test('直接关注只对 api.x.com 精确资料路径 GET 使用既有关联标�
   for(const url of ['https://api.x.com/1.1/friends/ids.json','https://api.x.com.evil.example/1.1/friends/list.json','https://user@api.x.com/1.1/friends/list.json'])await read(url,{method:'GET'});
   await read('https://api.x.com/1.1/friends/list.json',{method:'POST'});assert.equal(calls,1);assert.equal(fallbacks,4);
 });
+
+test('拉黑仅允许精确 api.x.com POST，携带表单；关系核实限定 GET',async()=>{
+ let injected,fallbacks=0;const read=listTransport({tabId:7,nativeFollowers:false},{executeScript:async options=>{injected=options;return [{frameId:0,result:{ok:true,status:200,body:'{}'}}];}},async()=>{fallbacks++;return new Response('{}');});
+ const headers={'content-type':'application/x-www-form-urlencoded'};
+ await read('https://api.x.com/1.1/blocks/create.json',{method:'POST',headers,body:'user_id=456'});
+ assert.deepEqual(injected.args,['https://api.x.com/1.1/blocks/create.json',headers,'POST','user_id=456']);
+ let sent;await vm.runInNewContext('('+injected.func.toString()+')(...args)',{location:{origin:'https://x.com'},AbortSignal,args:injected.args,fetch:async(url,options)=>{sent=options;return {status:200,text:async()=>'{}'};}});assert.equal(sent.method,'POST');assert.equal(sent.body,'user_id=456');
+ await read('https://api.x.com/1.1/friendships/show.json?source_id=123&target_id=456',{method:'GET',headers:{}});assert.equal(injected.args.length,2);
+ for(const [url,method] of [['https://api.x.com/1.1/blocks/create.json','GET'],['https://api.x.com/1.1/blocks/create.json?user_id=456','POST'],['https://api.x.com.evil.example/1.1/blocks/create.json','POST'],['https://api.x.com/1.1/friendships/show.json','POST']])await read(url,{method});assert.equal(fallbacks,4);
+});

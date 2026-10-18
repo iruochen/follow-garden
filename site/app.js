@@ -140,8 +140,8 @@ const copy = {
     "扩展处理哪些数据"
   ],
   "dataText": [
-    "After you select a read mode and refresh data, the extension handles your current account ID and display name, following and follower profiles, follower IDs, relationship fields, avatar URLs and the time and completeness of the snapshot. It also stores protection notes, your review list, task results and your language preference locally.",
-    "在你选择读取方式并主动读取后，扩展处理当前账号 ID、显示名称、关注及关注者资料、粉丝 ID、关系字段、头像 URL，以及快照的时间与完整度。本地还保存保护备注、待处理清单、任务结果及语言偏好。"
+    "After you select a read mode and refresh data, the extension handles your current account ID and display name, following and follower profiles, follower IDs, relationship fields, avatar URLs and the time and completeness of the snapshot. It also stores protection notes, your review list, task and single-account block results and your language preference locally.",
+    "在你选择读取方式并主动读取后，扩展处理当前账号 ID、显示名称、关注及关注者资料、粉丝 ID、关系字段、头像 URL，以及快照的时间与完整度。本地还保存保护备注、待处理清单、任务和单用户拉黑结果及语言偏好。"
   ],
   "authTitle": [
     "Authentication and network requests",
@@ -152,8 +152,8 @@ const copy = {
     "扩展在已连接的 X 标签页观察认证所需的请求头，包括授权、CSRF 和各操作的请求标识。这些仅保留在后台内存，十分钟后过期，不记录日志、不导出、不写入持久存储。请求使用浏览器已有的 X Cookie，但代码不读取 Cookie 的值，不会要求你粘贴 X 密码或 X Token。"
   ],
   "networkText": [
-    "When you load data or confirm an unfollow action, requests go directly to x.com or api.x.com. Avatars load through HTTPS pbs.twimg.com without a page referrer. The developer receives none of these account records.",
-    "读取数据或确认取关时，请求直接发往 x.com 或 api.x.com。头像通过 HTTPS pbs.twimg.com 加载，不发送页面来源。开发者不会收到账号记录。"
+    "When you load data or confirm an unfollow or block action, requests go directly to x.com or api.x.com. Avatars load through HTTPS pbs.twimg.com without a page referrer. The developer receives none of these account records.",
+    "读取数据或确认取关、拉黑时，请求直接发往 x.com 或 api.x.com。头像通过 HTTPS pbs.twimg.com 加载，不发送页面来源。开发者不会收到账号记录。"
   ],
   "storageTitle": [
     "Storage and retention",
@@ -168,8 +168,8 @@ const copy = {
     "你可以控制什么"
   ],
   "controlText": [
-    "You can export a CSV, protect accounts, pause or cancel pending work, and clear local account data in Settings. Clearing data disconnects the temporary session and loads fictional demo data; the language preference remains. It does not delete files you already exported or undo unfollows completed on X. Each new unfollow task requires your confirmation. Uncertain results are not automatically replayed. Clearing all data also removes provider keys from session and local storage; you can remove just the key separately.",
-    "你可以导出 CSV、保护账号、暂停或取消尚未执行的操作，并在设置中清除本地账号记录。清除会断开临时连接并加载虚构示例，语言偏好仍保留。清除不会删除你已导出的文件，也不会恢复已在 X 取消的关注。每次新取关任务需要你确认；结果未知的请求不会自动再次执行。 清除全部数据也删除会话和本地的供应商 Key；也可以单独清除 Key。"
+    "You can export a CSV, protect accounts, pause or cancel pending work, and clear local account data in Settings. Clearing data disconnects the temporary session and loads fictional demo data; the language preference remains. It does not delete files you already exported or undo unfollows completed on X. Each new unfollow task or single-account block requires your confirmation. Uncertain results are not automatically replayed. Clearing all data also removes provider keys from session and local storage; you can remove just the key separately.",
+    "你可以导出 CSV、保护账号、暂停或取消尚未执行的操作，并在设置中清除本地账号记录。清除会断开临时连接并加载虚构示例，语言偏好仍保留。清除不会删除你已导出的文件，也不会恢复已在 X 取消的关注。每次新取关任务或单用户拉黑需要你确认；结果未知的请求不会自动再次执行。 清除全部数据也删除会话和本地的供应商 Key；也可以单独清除 Key。"
   ],
   "sharingTitle": [
     "Sharing and other data",
