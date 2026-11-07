@@ -55,7 +55,7 @@ npm run package
 npm run preview
 ```
 
-扩展示例：`http://127.0.0.1:4173/extension/ui/index.html`；网站：`http://127.0.0.1:4173/site/`。打包输出 `dist/follow-garden-0.1.2.zip`。
+扩展示例：`http://127.0.0.1:4173/extension/ui/index.html`；网站：`http://127.0.0.1:4173/site/`。打包输出 `dist/follow-garden-0.1.3.zip`。
 
 测试使用合成数据及本地素材检查，不证明实时接口长期可用或真实取关成功。
 

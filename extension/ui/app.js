@@ -205,7 +205,7 @@ function confirmSelection(ids=[...selection], single=false) {
  if(!ids.length||locked()||ids.some(id=>!eligible(state.snapshot.users.find(u=>u.id===id),state)))return;
  confirmIds=[...ids];confirmOwner=state.accountId;confirmSingle=single;
  const users=confirmIds.map(id=>state.snapshot.users.find(u=>u.id===id));
- $('#confirm-content').innerHTML=`<div class="dialog-head"><div><h2 id="dialog-title">${t('confirmTitle')}</h2><small>${state.mode==='demo'?t('demoConfirm'):esc(t('currentAccount',{handle:state.accountHandle}))}</small></div><button class="close" id="close-dialog" aria-label="${t('close')}">×</button></div><div class="dialog-body"><p>${t('confirmHint',{n:users.length})}</p><ul class="confirm-list">${users.map(u=>`<li><span><strong>${esc(u.name)}</strong><small>@${esc(u.handle)}</small></span>${tag(u)}</li>`).join('')}</ul>${state.mode==='live'?`<div class="notice">${t('irreversible')}</div><label class="consent"><input id="live-consent" type="checkbox">${t('consent')}</label>`:`<div class="evidence">${t('demoConfirmHint')}</div>`}</div><div class="dialog-foot"><button class="button" id="cancel-dialog">${t('returnCheck')}</button><button class="button danger solid" id="execute" ${state.mode==='live'?'disabled':''}>${t(state.mode==='demo'?'simulateN':'confirmN',{n:users.length})}</button></div>`;
+ $('#confirm-content').innerHTML=`<div class="dialog-head"><div><h2 id="dialog-title">${t('confirmTitle')}</h2><small>${state.mode==='demo'?t('demoConfirm'):esc(t('currentAccount',{handle:state.accountHandle}))}</small></div><button class="close" id="close-dialog" aria-label="${t('close')}">×</button></div><div class="dialog-body"><p>${t('confirmHint',{n:users.length})}</p><ul class="confirm-list">${users.map(u=>`<li><span><strong>${esc(u.name)}</strong><small>@${esc(u.handle)}</small></span>${tag(u)}</li>`).join('')}</ul>${state.mode==='live'?`<div class="notice">${t('irreversible')}</div>`:`<div class="evidence">${t('demoConfirmHint')}</div>`}</div><div class="dialog-foot"><button class="button" id="cancel-dialog">${t('returnCheck')}</button><button class="button danger solid" id="execute">${t(state.mode==='demo'?'simulateN':'confirmN',{n:users.length})}</button></div>`;
  openDialog();
 }
 async function scan(type='scan') {
@@ -254,7 +254,7 @@ document.addEventListener('click',async event => {
   if (id === 'execute') {
     button.disabled = true;
     try {
-      await command('start',{ids:confirmIds,accountId:confirmOwner,liveConsent:$('#live-consent')?.checked === true});
+      await command('start',{ids:confirmIds,accountId:confirmOwner,liveConsent:state.mode === 'live'});
       if (confirmSingle) {
         const current = await command('state');
         singleTask = {owner:confirmOwner,id:confirmIds[0],jobId:current.state.job.id};
@@ -262,7 +262,7 @@ document.addEventListener('click',async event => {
       } else { view = 'job'; selection.clear(); }
       $('#confirm').close(); await refresh(true);
     }
-    catch (e) { toast(errorText(e)); button.disabled = state.mode === 'live' && !$('#live-consent')?.checked; }
+    catch (e) { toast(errorText(e)); button.disabled = false; }
   }
   if (['pause','resume','cancel-job','reconcile'].includes(id)) await action(id === 'cancel-job' ? 'cancel-job' : id);
   if (id === 'demo') { await action('demo',undefined,t('demoReset')); for (const key of drafts.keys()) if (key.startsWith('demo:self:')) drafts.delete(key); selection.clear(); render(); }
@@ -314,7 +314,6 @@ document.addEventListener('change',async event => {
   if (['follower-low-slider','follower-high-slider','follower-min','follower-max'].includes(event.target.id)) commitFollowerRange();
   if (event.target.id === 'sort') { sort = event.target.value; page = 0; selection.clear(); renderList(); renderDetail(); $('#list').scrollTop = 0; }
   if(event.target.id==='block-consent')$('#execute-block').disabled=!event.target.checked;
-  if (event.target.id === 'live-consent') $('#execute').disabled = !event.target.checked;
 });
 document.addEventListener('input',event => { if(['follower-low-slider','follower-high-slider'].includes(event.target.id))previewFollowerRange(event.target); if(['follower-min','follower-max'].includes(event.target.id)){followerDraft[event.target.id==='follower-min'?'min':'max']=event.target.value;$('#follower-max').setCustomValidity('');} if(event.target.id==='api-handle')apiDraft.handle=event.target.value; if(event.target.id==='api-key')apiDraft.key=event.target.value; if (event.target.id === 'note') drafts.set(state.accountId + ':' + focused,event.target.value); });
 $('#search').addEventListener('input',event => { query = event.target.value.trim(); page = 0; selection.clear(); renderList(); renderDetail(); $('#list').scrollTop = 0; });
