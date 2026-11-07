@@ -1,5 +1,13 @@
 # Changelog / 更新记录
 
+## 0.1.3 — 2026-11-07
+
+- Confirm single and batch unfollows directly from the account review dialog in one click. The dialog still shows the selected accounts and warns about changes to X following relationships.
+
+中文
+
+- 单个和批量取关均可在核对名单后直接点击确认，弹窗继续显示所选账号和取关影响。
+
 ## 0.1.2 — 2026-10-18
 
 - Open profile avatars and names in a new X tab while keeping row selection separate.
