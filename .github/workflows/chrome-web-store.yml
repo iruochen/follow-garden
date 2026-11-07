@@ -1,0 +1,100 @@
+name: Chrome Web Store
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Status is read-only. Submit uploads a Release ZIP for review.
+        type: choice
+        options:
+          - status
+          - submit
+        default: status
+      tag:
+        description: Published GitHub Release tag, e.g. v0.1.4 (required for submit)
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: chrome-web-store
+  cancel-in-progress: false
+
+jobs:
+  store:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+      CWS_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.CWS_WORKLOAD_IDENTITY_PROVIDER }}
+      CWS_SERVICE_ACCOUNT: ${{ vars.CWS_SERVICE_ACCOUNT }}
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Check configuration
+        run: |
+          : "${CWS_PUBLISHER_ID:?Set the CWS_PUBLISHER_ID repository variable}"
+          : "${CWS_WORKLOAD_IDENTITY_PROVIDER:?Set the CWS_WORKLOAD_IDENTITY_PROVIDER repository variable}"
+          : "${CWS_SERVICE_ACCOUNT:?Set the CWS_SERVICE_ACCOUNT repository variable}"
+
+      - name: Download and verify the GitHub Release ZIP
+        if: inputs.operation == 'submit'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo 'Enter a version tag such as v0.1.4.'
+            exit 1
+          fi
+          asset="follow-garden-${RELEASE_TAG#v}.zip"
+          release=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")
+          digest=$(jq -er --arg name "$asset" '
+            select(.draft == false and .prerelease == false)
+            | [.assets[] | select(.name == $name and .state == "uploaded")]
+            | select(length == 1) | .[0].digest
+            | select(test("^sha256:[0-9a-f]{64}$"))
+          ' <<< "$release") || { echo 'A public stable Release with a SHA-256 ZIP digest is required.'; exit 1; }
+          gh api "repos/$GITHUB_REPOSITORY/compare/$RELEASE_TAG...$DEFAULT_BRANCH" |
+            jq -e '.status == "ahead" or .status == "identical"' >/dev/null
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir "$RUNNER_TEMP"
+          (
+            cd "$RUNNER_TEMP"
+            printf '%s  %s\n' "${digest#sha256:}" "$asset" | sha256sum --check
+          )
+
+      - name: Authenticate to Chrome Web Store
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.CWS_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.CWS_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_lifetime: 900s
+          access_token_scopes: ${{ inputs.operation == 'submit' && 'https://www.googleapis.com/auth/chromewebstore' || 'https://www.googleapis.com/auth/chromewebstore.readonly' }}
+          create_credentials_file: false
+          export_environment_variables: false
+
+      - name: Check status or submit for review
+        env:
+          CWS_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          if [[ "$OPERATION" == status ]]; then
+            python3 scripts/chrome_web_store.py
+          elif [[ "$OPERATION" == submit ]]; then
+            python3 scripts/chrome_web_store.py "$RELEASE_TAG" "$RUNNER_TEMP/follow-garden-${RELEASE_TAG#v}.zip"
+          else
+            echo 'Choose status or submit.'
+            exit 1
+          fi
